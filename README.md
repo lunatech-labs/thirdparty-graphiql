@@ -1,5 +1,59 @@
 <!-- @format -->
 
+# Lunatech's GraphQL fork that adds JSLT transformation support
+
+This forks adds new panel, next to the 'Query Variables' panel, which enables the user to enter a [JSLT transformation](https://github.com/schibsted/jslt), which gets submitted along with the request in the 'X-JSLT' header as Base64.
+
+This enables the server to post-process the result of the graphql query.
+
+For example, a query like this:
+
+```
+query {
+  people {
+    name
+  }
+}
+```
+
+typically gives output like:
+
+```
+{
+  "data" : {
+    "people" : [
+      {
+        "name": "John doe"
+      },
+      ...
+    ]
+  }
+}
+```
+
+With the JSLT transform
+
+```
+{
+  "names": [for (.data.people)
+                       (.name)]
+}
+```
+
+this gets transformed to
+
+```
+{
+  "names": ["John Doe", ...]
+}
+```
+
+which can be handy :)
+
+Lunatech uses JSLT transformations in its internal Dashboard.
+
+Below here begins the original README.
+
 # GraphQL IDE Monorepo
 
 > **Note:** The primary maintainer @acao is on hiatus until December 2020
