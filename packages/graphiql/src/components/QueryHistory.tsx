@@ -22,6 +22,7 @@ const shouldSaveQuery = (
   query?: string,
   variables?: string,
   headers?: string,
+  jslt?: string,
   lastQuerySaved?: QueryStoreItem,
 ) => {
   if (!query) {
@@ -46,7 +47,12 @@ const shouldSaveQuery = (
       JSON.stringify(variables) === JSON.stringify(lastQuerySaved.variables)
     ) {
       if (JSON.stringify(headers) === JSON.stringify(lastQuerySaved.headers)) {
-        return false;
+        if (jslt === jslt) {
+          return false;
+        }
+        if (jslt && !lastQuerySaved.jslt) {
+          return false;
+        }
       }
       if (headers && !lastQuerySaved.headers) {
         return false;
@@ -63,6 +69,7 @@ type QueryHistoryProps = {
   query?: string;
   variables?: string;
   headers?: string;
+  jslt?: string;
   operationName?: string;
   queryID?: number;
   onSelectQuery: HandleSelectQueryFn;
@@ -124,6 +131,7 @@ export class QueryHistory extends React.Component<
     query?: string,
     variables?: string,
     headers?: string,
+    jslt?: string,
     operationName?: string,
   ) => {
     if (
@@ -131,6 +139,7 @@ export class QueryHistory extends React.Component<
         query,
         variables,
         headers,
+        jslt,
         this.historyStore.fetchRecent(),
       )
     ) {
@@ -138,6 +147,7 @@ export class QueryHistory extends React.Component<
         query,
         variables,
         headers,
+        jslt,
         operationName,
       });
       const historyQueries = this.historyStore.items;

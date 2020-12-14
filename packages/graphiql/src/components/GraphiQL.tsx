@@ -32,6 +32,7 @@ import { ToolbarMenu, ToolbarMenuItem } from './ToolbarMenu';
 import { QueryEditor } from './QueryEditor';
 import { VariableEditor } from './VariableEditor';
 import { HeaderEditor } from './HeaderEditor';
+import { JsltEditor } from './JsltEditor';
 import { ResultViewer } from './ResultViewer';
 import { DocExplorer } from './DocExplorer';
 import { QueryHistory } from './QueryHistory';
@@ -114,6 +115,7 @@ export type GraphiQLProps = {
   query?: string;
   variables?: string;
   headers?: string;
+  jslt?: string;
   operationName?: string;
   response?: string;
   storage?: Storage;
@@ -121,11 +123,14 @@ export type GraphiQLProps = {
   defaultVariableEditorOpen?: boolean;
   defaultSecondaryEditorOpen?: boolean;
   headerEditorEnabled?: boolean;
+  jsltEditorEnabled?: boolean;
   shouldPersistHeaders?: boolean;
+  shouldPersistJslt?: boolean;
   onCopyQuery?: (query?: string) => void;
   onEditQuery?: (query?: string) => void;
   onEditVariables?: (value: string) => void;
   onEditHeaders?: (value: string) => void;
+  onEditJslt?: (value: string) => void;
   onEditOperationName?: (operationName: string) => void;
   onToggleDocs?: (docExplorerOpen: boolean) => void;
   getDefaultFieldNames?: GetDefaultFieldNamesFn;
@@ -142,6 +147,7 @@ export type GraphiQLState = {
   query?: string;
   variables?: string;
   headers?: string;
+  jslt?: string;
   operationName?: string;
   docExplorerOpen: boolean;
   response?: string;
@@ -151,7 +157,10 @@ export type GraphiQLState = {
   variableEditorActive: boolean;
   headerEditorActive: boolean;
   headerEditorEnabled: boolean;
+  jsltEditorActive: boolean;
+  jsltEditorEnabled: boolean;
   shouldPersistHeaders: boolean;
+  shouldPersistJslt: boolean;
   historyPaneOpen: boolean;
   docExplorerWidth: number;
   isWaitingForResponse: boolean;
@@ -195,6 +204,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
   resultComponent: Maybe<ResultViewer>;
   variableEditorComponent: Maybe<VariableEditor>;
   headerEditorComponent: Maybe<HeaderEditor>;
+  jsltEditorComponent: Maybe<JsltEditor>;
   _queryHistory: Maybe<QueryHistory>;
   editorBarComponent: Maybe<HTMLDivElement>;
   queryEditorComponent: Maybe<QueryEditor>;
@@ -239,6 +249,10 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
         ? props.headers
         : this._storage.get('headers');
 
+    // Determine the initial jslt to display.
+    const jslt =
+      props.jslt !== undefined ? props.jslt : this._storage.get('jslt');
+
     // Determine the initial operationName to use.
     const operationName =
       props.operationName !== undefined
@@ -269,6 +283,18 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
 
     const headerEditorEnabled = props.headerEditorEnabled ?? false;
     const shouldPersistHeaders = props.shouldPersistHeaders ?? false;
+    const jsltEditorEnabled = props.jsltEditorEnabled ?? false;
+    const shouldPersistJslt = props.shouldPersistJslt ?? false;
+
+    const variableEditorActive =
+      this._storage.get('variableEditorActive') === 'true';
+    const headerEditorActive =
+      !variableEditorActive &&
+      this._storage.get('headerEditorActive') === 'true';
+    const jsltEditorActive =
+      !variableEditorActive &&
+      !headerEditorActive &&
+      this._storage.get('jsltEditorActive') === 'true';
 
     // Initialize state
     this.state = {
@@ -276,6 +302,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
       query,
       variables: variables as string,
       headers: headers as string,
+      jslt: jslt as string,
       operationName,
       docExplorerOpen,
       response: props.response,
@@ -283,14 +310,13 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
       secondaryEditorOpen,
       secondaryEditorHeight:
         Number(this._storage.get('secondaryEditorHeight')) || 200,
-      variableEditorActive:
-        this._storage.get('variableEditorActive') === 'true' ||
-        props.headerEditorEnabled
-          ? this._storage.get('headerEditorActive') !== 'true'
-          : true,
-      headerEditorActive: this._storage.get('headerEditorActive') === 'true',
+      variableEditorActive,
+      headerEditorActive,
       headerEditorEnabled,
       shouldPersistHeaders,
+      jsltEditorActive,
+      jsltEditorEnabled,
+      shouldPersistJslt,
       historyPaneOpen: this._storage.get('historyPaneOpen') === 'true' || false,
       docExplorerWidth:
         Number(this._storage.get('docExplorerWidth')) ||
@@ -326,6 +352,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     let nextQuery = this.state.query;
     let nextVariables = this.state.variables;
     let nextHeaders = this.state.headers;
+    let nextJslt = this.state.jslt;
     let nextOperationName = this.state.operationName;
     let nextResponse = this.state.response;
 
@@ -346,6 +373,9 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
       this.props.headers !== nextProps.headers
     ) {
       nextHeaders = nextProps.headers;
+    }
+    if (nextProps.jslt !== undefined && this.props.jslt !== nextProps.jslt) {
+      nextJslt = nextProps.jslt;
     }
     if (nextProps.operationName !== undefined) {
       nextOperationName = nextProps.operationName;
@@ -389,6 +419,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
         query: nextQuery,
         variables: nextVariables,
         headers: nextHeaders,
+        jslt: nextJslt,
         operationName: nextOperationName,
         response: nextResponse,
       },
@@ -411,6 +442,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
       this.queryEditorComponent,
       this.variableEditorComponent,
       this.headerEditorComponent,
+      this.jsltEditorComponent,
       this.resultComponent,
     ]);
   }
@@ -597,6 +629,19 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
                       {'Request Headers'}
                     </div>
                   )}
+                  {this.state.jsltEditorEnabled && (
+                    <div
+                      style={{
+                        cursor: 'pointer',
+                        color: this.state.jsltEditorActive ? '#000' : 'gray',
+                        display: 'inline-block',
+                        marginLeft: '20px',
+                      }}
+                      onClick={this.handleOpenJsltEditorTab}
+                      onMouseDown={this.handleTabClickPropogation}>
+                      {'JSLT Transformation'}
+                    </div>
+                  )}
                 </div>
                 <VariableEditor
                   ref={n => {
@@ -627,6 +672,22 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
                     editorTheme={this.props.editorTheme}
                     readOnly={this.props.readOnly}
                     active={this.state.headerEditorActive}
+                  />
+                )}
+                {this.state.jsltEditorEnabled && (
+                  <JsltEditor
+                    ref={n => {
+                      this.jsltEditorComponent = n;
+                    }}
+                    value={this.state.jslt}
+                    onEdit={this.handleEditJslt}
+                    onHintInformationRender={this.handleHintInformationRender}
+                    onPrettifyQuery={this.handlePrettifyQuery}
+                    onMergeQuery={this.handleMergeQuery}
+                    onRunQuery={this.handleEditorRunQuery}
+                    editorTheme={this.props.editorTheme}
+                    readOnly={this.props.readOnly}
+                    active={this.state.jsltEditorActive}
                   />
                 )}
               </section>
@@ -685,6 +746,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
   static QueryEditor = QueryEditor;
   static VariableEditor = VariableEditor;
   static HeaderEditor = HeaderEditor;
+  static JsltEditor = JsltEditor;
   static ResultViewer = ResultViewer;
 
   // Add a button to the Toolbar.
@@ -738,6 +800,13 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     return null;
   }
 
+  public getJsltEditor() {
+    if (this.jsltEditorComponent) {
+      return this.jsltEditorComponent.getCodeMirror();
+    }
+    return null;
+  }
+
   /**
    * Refresh all CodeMirror instances.
    *
@@ -752,6 +821,9 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     }
     if (this.headerEditorComponent) {
       this.headerEditorComponent.getCodeMirror().refresh();
+    }
+    if (this.jsltEditorComponent) {
+      this.jsltEditorComponent.getCodeMirror().refresh();
     }
     if (this.resultComponent) {
       this.resultComponent.getCodeMirror().refresh();
@@ -894,6 +966,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     query: string,
     variables: string,
     headers: string,
+    jslt: string,
     operationName: string,
     shouldPersistHeaders: boolean,
     cb: (value: FetcherResult) => any,
@@ -922,6 +995,14 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
 
     if (typeof jsonHeaders !== 'object') {
       throw new Error('Headers are not a JSON object.');
+    }
+
+    if (jsonHeaders === null) {
+      jsonHeaders = {};
+    }
+
+    if (jslt !== null && jslt.length > 0) {
+      jsonHeaders['X-JSLT'] = btoa(jslt);
     }
 
     const fetch = fetcher(
@@ -1015,6 +1096,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     const editedQuery = this.autoCompleteLeafs() || this.state.query;
     const variables = this.state.variables;
     const headers = this.state.headers;
+    const jslt = this.state.jslt;
     const shouldPersistHeaders = this.state.shouldPersistHeaders;
     let operationName = this.state.operationName;
 
@@ -1038,6 +1120,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
           editedQuery,
           variables,
           headers,
+          jslt,
           operationName,
         );
       }
@@ -1047,6 +1130,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
         editedQuery as string,
         variables as string,
         headers as string,
+        jslt as string,
         operationName as string,
         shouldPersistHeaders as boolean,
         (result: FetcherResult) => {
@@ -1246,6 +1330,15 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     }
   };
 
+  handleEditJslt = (value: string) => {
+    this.setState({ jslt: value });
+    this.props.shouldPersistJslt &&
+      debounce(500, () => this._storage.set('jslt', value))();
+    if (this.props.onEditJslt) {
+      this.props.onEditJslt(value);
+    }
+  };
+
   handleEditOperationName = (operationName: string) => {
     const onEditOperationName = this.props.onEditOperationName;
     if (onEditOperationName) {
@@ -1325,6 +1418,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     query?: string,
     variables?: string,
     headers?: string,
+    jslt?: string,
     operationName?: string,
   ) => {
     if (query) {
@@ -1335,6 +1429,9 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     }
     if (headers) {
       this.handleEditHeaders(headers);
+    }
+    if (jslt) {
+      this.handleEditJslt(jslt);
     }
     if (operationName) {
       this.handleEditOperationName(operationName);
@@ -1485,6 +1582,18 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     this.setState({
       headerEditorActive: true,
       variableEditorActive: false,
+      jsltEditorActive: false,
+      secondaryEditorOpen: true,
+    });
+  };
+
+  private handleOpenJsltEditorTab: MouseEventHandler<
+    HTMLDivElement
+  > = _clickEvent => {
+    this.setState({
+      headerEditorActive: false,
+      variableEditorActive: false,
+      jsltEditorActive: true,
       secondaryEditorOpen: true,
     });
   };
@@ -1495,6 +1604,7 @@ export class GraphiQL extends React.Component<GraphiQLProps, GraphiQLState> {
     this.setState({
       headerEditorActive: false,
       variableEditorActive: true,
+      jsltEditorActive: false,
       secondaryEditorOpen: true,
     });
   };

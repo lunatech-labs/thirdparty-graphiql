@@ -67,6 +67,11 @@ function onEditHeaders(newHeaders) {
   updateURL();
 }
 
+function onEditJslt(newJslt) {
+  parameters.jslt = newJslt;
+  updateURL();
+}
+
 function onEditOperationName(newOperationName) {
   parameters.operationName = newOperationName;
   updateURL();
@@ -140,13 +145,16 @@ ReactDOM.render(
     query: parameters.query,
     variables: parameters.variables,
     headers: parameters.headers,
+    jslt: parameters.jslt,
     operationName: parameters.operationName,
     onEditQuery: onEditQuery,
     onEditVariables: onEditVariables,
     onEditHeaders: onEditHeaders,
+    onEditJslt: onEditJslt,
     defaultSecondaryEditorOpen: true,
     onEditOperationName: onEditOperationName,
     headerEditorEnabled: true,
+    jsltEditorEnabled: true,
   }),
   document.getElementById('graphiql'),
 );
